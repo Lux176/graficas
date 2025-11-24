@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 import io
+import base64
 
 # --- 1. CONFIGURACIÓN DE DATOS Y ESTILOS ---
 
@@ -80,7 +81,6 @@ if df is not None:
     )
 
     # 3.2 Slider para Top N
-    # Asegurarse de que el DataFrame filtrado no esté vacío antes de calcular max_n
     try:
         source_df_check = df[df['?el_reporte_referente_a_las_lluvias?'] == 'si'] if data_type == 'Top Colonias (Lluvias)' else df
         
@@ -89,7 +89,7 @@ if df is not None:
         else:
             unique_count = len(source_df_check['colonia'].dropna().unique())
             
-        max_n = min(unique_count, 20) # Limitar a un máximo de 20 para buena visualización
+        max_n = min(unique_count, 20) 
         
     except KeyError:
         st.error("❌ Error: Verifica que tu archivo contenga las columnas 'colonia' y 'tipo_de_reporte_(incidente)'.")
@@ -214,12 +214,59 @@ if df is not None:
             centre_circle = plt.Circle((0,0), 0.65, color='white', fc='white',linewidth=1.25, edgecolor='gray')
             ax.add_artist(centre_circle)
     
-    # --- 7. RENDERIZADO FINAL ---
+    # Configurar título del gráfico
     ax.set_title(custom_title, fontsize=16)
+    
+    # --- 7. RENDERIZADO Y EXPORTACIÓN ---
     st.pyplot(fig)
 
+    st.markdown("### 💾 Descargar Gráfico")
+    
+    # Columnas para los botones
+    col1, col2 = st.columns(2)
+    
+    # 7.1 Botón PNG
+    # Guardar figura en buffer de bytes
+    png_buffer = io.BytesIO()
+    fig.savefig(png_buffer, format='png', bbox_inches='tight', dpi=300)
+    png_buffer.seek(0)
+    
+    with col1:
+        st.download_button(
+            label="🖼️ Descargar como PNG",
+            data=png_buffer,
+            file_name="grafico_incidentes.png",
+            mime="image/png"
+        )
+
+    # 7.2 Botón HTML
+    # Para mantener el estilo visual exacto (especialmente los gradientes), 
+    # incrustamos la imagen PNG dentro de un archivo HTML simple.
+    png_buffer.seek(0)
+    b64_image = base64.b64encode(png_buffer.getvalue()).decode()
+    html_content = f"""
+    <html>
+        <head>
+            <title>{custom_title}</title>
+        </head>
+        <body style="display:flex; justify-content:center; align-items:center; height:100vh; margin:0; background-color:#f0f2f6;">
+            <div style="box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); padding: 20px; background-color: white; border-radius: 10px;">
+                <h2 style="text-align:center; font-family: sans-serif; color: #333;">{custom_title}</h2>
+                <img src="data:image/png;base64,{b64_image}" alt="Gráfico de Incidentes" style="max-width:100%; height:auto;">
+            </div>
+        </body>
+    </html>
+    """
+    
+    with col2:
+        st.download_button(
+            label="🌐 Descargar como HTML",
+            data=html_content,
+            file_name="grafico_incidentes.html",
+            mime="text/html"
+        )
 
 # --- REQUISITOS DEL CÓDIGO ---
 st.markdown("---")
 st.markdown("### 🛠️ Requisitos del Código (`requirements.txt`)")
-st.code("streamlit\npandas\nmatplotlib\nnumpy")
+st.code("streamlit\npandas\nmatplotlib\nnumpy\nopenpyxl")
